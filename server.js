@@ -106,7 +106,76 @@ const viewAll = async (dbTable) => {
 
 // function to INSERT values into a table
 const addToDb = async (dbTable) => {
-    console.log ("coming soon")
+    if (dbTable === "departments") {
+        const answer = await inquirer.prompt({
+            type: "input",
+            name: "name",
+            message: "What is the name of the department you would like to add?",
+        })
+        
+        if (!answer || !answer.name) {
+            console.log("Department name cannot be blank");
+            addToDb("department");  // this might cause memory issues, i do not know a better alternative
+        }
+
+        await db.promise().query("INSERT INTO departments SET ?", answer);
+        console.log(`Added ${answer.name} to departments.`);
+    } else if (dbTable === "roles") {
+        const answer = await inquirer.prompt([
+            {
+                type: "input",
+                name: "title",
+                message: "What is the name of the role you would like to add?",
+            },
+            {
+                type: "number",
+                name: "salary",
+                message: "What is the salary of the role?",
+            },
+            {
+                type: "list",
+                name: "department_id",
+                message: "Which department is the role in?",
+                choices: () => db.promise().query("SELECT * FROM departments").then(([rows]) => rows.map(department => ({name: department.name, value: department.id})))
+            }
+        ]);
+
+        if (!answer || !answer.title) {
+            console.log("Role name cannot be blank");
+            addToDb("role");
+        }
+
+        await db.promise().query("INSERT INTO roles SET ?", answer);
+        console.log(`Added ${answer.title} to roles.`);
+    } else {  // table will always = "employees" here
+        const answer = await inquirer.prompt([
+            {
+                type: "input",
+                name: "first_name",
+                message: "Enter the employee's first name.",
+            },
+            {
+                type: "input",
+                name: "last_name",
+                message: "Enter the employee's last name.",
+            },
+            {
+                type: "list",
+                name: "role_id",
+                message: "Which role is the employee in?",
+                choices: () => db.promise().query("SELECT * FROM roles").then(([rows]) => rows.map(role => ({name: role.title, value: role.id})))
+            },
+            {
+                type: "list",
+                name: "manager_id",
+                message: "Who is the employee's manager?",
+                choices: () => db.promise().query("SELECT * FROM employees").then(([rows]) => rows.map(employee => ({name: employee.first_name + " " + employee.last_name, value: employee.id})))
+            }
+        ]);
+        await db.promise().query("INSERT INTO employees SET ?", answer);
+        console.log(`Added ${answer.first_name} ${answer.last_name} to employees.`);
+    }
+    main();
 }
 
 main();
