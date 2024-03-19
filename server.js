@@ -34,9 +34,11 @@ const main = async () => {
             await addToDb("employees");
             break;
         case "Update Employee Role":
+            await updateEmployeeRole();
             break;
         case "Exit Database":
-            
+            db.end();
+            console.log("You have sucessfully exited the database");
             break;
     }
 }
@@ -175,6 +177,26 @@ const addToDb = async (dbTable) => {
         await db.promise().query("INSERT INTO employees SET ?", answer);
         console.log(`Added ${answer.first_name} ${answer.last_name} to employees.`);
     }
+    main();
+}
+
+const updateEmployeeRole = async () => {
+    const answer = await inquirer.prompt([
+        {
+            type: "list",
+            name: "employee_id",
+            message: "Which employee would you like to update?",
+            choices: () => db.promise().query("SELECT * FROM employees").then(([rows]) => rows.map(employee => ({name: employee.first_name + " " + employee.last_name, value: employee.id})))
+        },
+        {
+            type: "list",
+            name: "role_id",
+            message: "What is their new role?",
+            choices: () => db.promise().query("SELECT * FROM roles").then(([rows]) => rows.map(role => ({name: role.title, value: role.id})))
+        },
+    ])
+    await db.promise().query("UPDATE employees SET role_id = ? WHERE id = ?", [answer.role_id, answer.employee_id]);
+    console.log(`Role successfully updated.`);
     main();
 }
 
