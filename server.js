@@ -12,9 +12,25 @@ const db = mysql.createConnection(
   );
 
 const main = async () => {
-    let answer = await askQuestion();
-    
-    switch (answer) {
+    const answers = await inquirer.prompt([
+        {
+            type: "rawlist", 
+            name : "choice", 
+            message: "What would you like to do?", 
+            choices: [
+                "View All Departments", 
+                "View All Roles", 
+                "View All Employees", 
+                "Add Department", 
+                "Add Role", 
+                "Add Employee", 
+                "Update Employee Role",
+                "Exit Database"
+            ],
+        },
+    ])
+    console.log("")
+    switch (answers.choice) {
         case "View All Departments":
             await viewAll("departments");
             break;
@@ -39,71 +55,38 @@ const main = async () => {
         case "Exit Database":
             db.end();
             console.log("You have sucessfully exited the database");
-            break;
+            process.exit(0);
     }
-}
-
-const askQuestion = async () => {
-    const answers = await inquirer.prompt([
-        {
-            type: "rawlist", 
-            name : "choice", 
-            message: "What would you like to do?", 
-            choices: [
-                "View All Departments", 
-                "View All Roles", 
-                "View All Employees", 
-                "Add Department", 
-                "Add Role", 
-                "Add Employee", 
-                "Update Employee Role",
-                "Exit Database"
-            ],
-        },
-    ])
-
-    return answers.choice
+    main();
 }
 
 // function to SELECT all items from a table
 const viewAll = async (dbTable) => {
+    let dbQuery;
     if (dbTable === "departments") {
-        db.query(`
-            SELECT * 
-            FROM departments
-        `, (err, res) => {
-            err 
-            ? console.error(err)
-            : console.table(res);
-        });
+        dbQuery = "SELECT * FROM departments"
     } else if (dbTable === "roles") {
-        db.query(`
-            SELECT roles.id, roles.title, roles.salary, roles.department_id, departments.name 
-            FROM roles 
-            LEFT JOIN departments 
-            ON roles.department_id = departments.id
-        `, (err, res) => {
-            err 
-            ? console.error(err)
-            : console.table(res);
-        });
+        dbQuery = `SELECT roles.id, roles.title, roles.salary, roles.department_id, departments.name 
+                   FROM roles 
+                   LEFT JOIN departments 
+                   ON roles.department_id = departments.id`
     } else {  // table will always = "employees" here
-        db.query(`
-            SELECT employees.id, employees.first_name, employees.last_name, roles.title, departments.name, roles.salary, CONCAT(managers.first_name, ' ', managers.last_name) AS manager
-            FROM employees 
-            LEFT JOIN roles
-            ON employees.role_id = roles.id
-            LEFT JOIN departments
-            ON departments.id = roles.department_id
-            LEFT JOIN employees AS managers
-            ON employees.manager_id = managers.id
-        `, (err, res) => {
-            err 
-            ? console.error(err)
-            : console.table(res);
-        });
+        dbQuery = `SELECT employees.id, employees.first_name, employees.last_name, roles.title, departments.name, roles.salary, CONCAT(managers.first_name, ' ', managers.last_name) AS manager
+                   FROM employees 
+                   LEFT JOIN roles
+                   ON employees.role_id = roles.id
+                   LEFT JOIN departments
+                   ON departments.id = roles.department_id
+                   LEFT JOIN employees AS managers
+                   ON employees.manager_id = managers.id`
     }
-    main();
+
+    try {
+        res = await db.promise().query(dbQuery);
+        console.table(res[0]);
+    } catch (err) { 
+        console.error(`Error getting ${dbTable}: ${err}`);
+    }
 }
 
 // function to INSERT values into a table
@@ -177,7 +160,6 @@ const addToDb = async (dbTable) => {
         await db.promise().query("INSERT INTO employees SET ?", answer);
         console.log(`Added ${answer.first_name} ${answer.last_name} to employees.`);
     }
-    main();
 }
 
 const updateEmployeeRole = async () => {
@@ -197,7 +179,6 @@ const updateEmployeeRole = async () => {
     ])
     await db.promise().query("UPDATE employees SET role_id = ? WHERE id = ?", [answer.role_id, answer.employee_id]);
     console.log(`Role successfully updated.`);
-    main();
 }
 
 main();
